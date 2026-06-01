@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>中文教室 ‧ 物品拖拉學習</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ceiling:#46BFA4; --ceiling-d:#37A78D;
+    --wall:#F3F2E3; --wall-side:#E9E8D6;
+    --floor:#EE9E96; --floor-line:#F6C9C2;
+    --coral:#F0705E; --coral-d:#D85B4A;
+    --yellow:#F8D15A; --green:#A6DC8C; --green-d:#7FC267;
+    --sky:#CDEEF2; --ink:#2E4A45; --red:#E8584A;
+    --panel:#FBFAF1; --panel-line:#E6E4D2; --shadow:rgba(46,74,69,.18);
+    --font-disp:"Fredoka","Noto Sans TC",sans-serif;
+    --font-zh:"Noto Sans TC","Fredoka",sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:var(--font-zh); color:var(--ink);
+    background:radial-gradient(120% 80% at 50% -10%, #FFF7E8 0%, #F4EFDD 55%, #EAE4CE 100%);
+    min-height:100vh; overflow-x:hidden; padding:14px clamp(10px,3vw,28px) 30px;
+  }
+
+  /* top bar */
+  .topbar{max-width:1320px;margin:0 auto 14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;}
+  .brand{display:flex;align-items:center;gap:12px;margin-right:auto;}
+  .brand .logo{width:46px;height:46px;border-radius:14px;flex:0 0 auto;background:var(--coral);
+    box-shadow:0 4px 0 var(--coral-d);display:grid;place-items:center;font-size:24px;transform:rotate(-4deg);}
+  .brand h1{font-family:var(--font-zh);font-weight:900;margin:0;font-size:clamp(19px,2.4vw,26px);letter-spacing:.5px;line-height:1.05;}
+  .brand h1 small{display:block;font-family:var(--font-disp);font-weight:500;font-size:12px;color:#8a9a92;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;}
+  .btn{font-family:var(--font-zh);font-weight:700;font-size:14px;border:none;cursor:pointer;border-radius:13px;padding:9px 14px;
+    background:#fff;color:var(--ink);box-shadow:0 3px 0 #d9d6c2;transition:transform .08s,box-shadow .08s,background .15s;
+    display:inline-flex;align-items:center;gap:7px;user-select:none;}
+  .btn:hover{transform:translateY(-1px);}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #d9d6c2;}
+  .btn.on{background:var(--green);box-shadow:0 3px 0 var(--green-d);color:#234a1f;}
+
+  .wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
+
+  /* stage / room */
+  .stage-shell{position:relative;border-radius:22px;overflow:hidden;
+    box-shadow:0 18px 40px -18px var(--shadow),0 0 0 6px #fff,0 0 0 9px #ece9d6;background:var(--wall);}
+  .stage{position:relative;width:100%;aspect-ratio:1400/720;}
+  .stage svg.bg{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .layer{position:absolute;inset:0;}
+
+  /* token : just the object, no frame / no white box */
+  .token{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:5px;
+    cursor:grab;touch-action:none;user-select:none;z-index:5;animation:pop .32s cubic-bezier(.2,1.3,.5,1) both;}
+  @keyframes pop{from{opacity:0;transform:translate(-50%,-50%) scale(.4);}to{opacity:1;}}
+  .token:active{cursor:grabbing;}
+  .token.dragging{z-index:50;}
+  .token .icon{position:relative;font-size:calc(clamp(48px,5.8vw,74px) * var(--scale,1));line-height:1;display:block;
+    filter:drop-shadow(0 7px 6px rgba(46,74,69,.32));transition:filter .12s;}
+  .token .icon svg{width:1em;height:1em;display:block;}
+  .token.dragging .icon{filter:drop-shadow(0 15px 13px rgba(46,74,69,.42));}
+  .token .label{background:rgba(255,255,255,.96);border-radius:12px;padding:3px 12px;text-align:center;
+    box-shadow:0 3px 8px -4px var(--shadow);line-height:1.2;}
+  .token .zh{font-weight:900;font-size:clamp(16px,1.9vw,21px);display:block;}
+  .token .del{position:absolute;top:-9px;right:-9px;width:24px;height:24px;border-radius:50%;background:#fff;
+    border:2px solid var(--coral);color:var(--coral);font-size:14px;font-weight:900;display:none;place-items:center;
+    cursor:pointer;box-shadow:0 2px 5px -1px var(--shadow);line-height:1;z-index:2;}
+  .token:hover .del, .token.tapped .del{display:grid;}
+  .token .speaker{position:absolute;top:-9px;left:-9px;width:23px;height:23px;border-radius:50%;background:var(--yellow);
+    display:none;place-items:center;font-size:12px;box-shadow:0 2px 4px -1px var(--shadow);pointer-events:none;z-index:2;}
+  .token.speaking .speaker{display:grid;animation:beat .5s ease;}
+  @keyframes beat{0%,100%{transform:scale(1);}50%{transform:scale(1.25);}}
+
+  /* supply palette : bare icons on a tray, no per-item box */
+  .supply{background:var(--panel);border-radius:22px;padding:16px clamp(12px,2.5vw,22px) 18px;
+    box-shadow:0 12px 30px -20px var(--shadow),inset 0 0 0 1px var(--panel-line);}
+  .supply-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px;}
+  .supply-head .tag{font-weight:900;font-size:16px;background:var(--yellow);color:#7a5a12;padding:5px 13px;border-radius:11px;box-shadow:0 3px 0 #d9b23f;}
+  .supply-head .sub{font-size:13px;color:#8a9a92;font-weight:700;}
+  .tabs{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;}
+  .tab{font-family:var(--font-zh);font-weight:700;font-size:14px;cursor:pointer;border:none;border-radius:11px;padding:8px 16px;
+    background:#fff;color:#7a8a83;box-shadow:0 3px 0 #e2dfca;transition:transform .08s,box-shadow .08s;}
+  .tab:active{transform:translateY(2px);box-shadow:0 1px 0 #e2dfca;}
+  .tab.active{background:var(--coral);color:#fff;box-shadow:0 3px 0 var(--coral-d);}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));}
+  .card{background:transparent;border:none;box-shadow:none;border-radius:16px;padding:9px 6px;text-align:center;
+    cursor:grab;touch-action:none;user-select:none;position:relative;transition:transform .12s;}
+  .card:hover{transform:translateY(-4px);}
+  .card:active{cursor:grabbing;}
+  .card .ic{font-size:clamp(44px,5.4vw,58px);line-height:1;display:flex;align-items:center;justify-content:center;
+    min-height:1.15em;filter:drop-shadow(0 5px 5px rgba(46,74,69,.2));}
+  .card .ic svg{width:1em;height:1em;}
+  .card .ic.trio{font-size:clamp(28px,3.4vw,37px);gap:4px;}
+  .card .czh{font-weight:900;font-size:16px;display:block;margin-top:8px;}
+  .card .qbadge{position:absolute;top:0;left:6px;background:var(--green);color:#234a1f;font-weight:900;font-size:11px;
+    padding:1px 7px;border-radius:9px;box-shadow:0 2px 0 var(--green-d);z-index:2;}
+  .card .play{position:absolute;top:0;right:6px;width:24px;height:24px;border-radius:50%;background:var(--yellow);border:none;
+    cursor:pointer;font-size:12px;display:grid;place-items:center;box-shadow:0 2px 3px -1px var(--shadow);opacity:0;transition:opacity .15s;z-index:2;}
+  .card:hover .play{opacity:1;}
+
+  #ghost{position:fixed;z-index:999;pointer-events:none;transform:translate(-50%,-50%);display:none;
+    font-size:66px;line-height:1;filter:drop-shadow(0 14px 12px rgba(46,74,69,.4));}
+  #ghost svg{width:1em;height:1em;display:block;}
+
+  @media (max-width:560px){
+    .brand h1 small{display:none;}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(88px,1fr));}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">🏫</div>
+      <h1>中文教室</h1>
+    </div>
+    <div class="controls">
+      <button class="btn on" id="tgSound">🔊 發音</button>
+      <button class="btn" id="reset">↺ 重設場景</button>
+      <button class="btn" id="clear">📦 全部搬走</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- ROOM -->
+    <div class="stage-shell">
+      <div class="stage" id="stage">
+        <svg class="bg" viewBox="0 0 1400 720" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <polygon points="0,0 1400,0 1300,58 100,58" fill="var(--ceiling)"/>
+          <polygon points="0,0 100,58 100,62 0,4" fill="var(--ceiling-d)"/>
+          <rect x="0" y="0" width="1400" height="6" fill="var(--sky)"/>
+          <polygon points="0,4 100,58 110,560 0,640" fill="var(--wall-side)"/>
+          <polygon points="1400,4 1300,58 1290,560 1400,640" fill="var(--wall-side)"/>
+          <rect x="100" y="58" width="1200" height="502" fill="var(--wall)"/>
+          <polygon points="0,640 1400,640 1400,720 0,720" fill="var(--floor)"/>
+          <polygon points="110,560 1290,560 1400,640 0,640" fill="var(--floor)"/>
+          <g stroke="var(--floor-line)" stroke-width="4" opacity=".9" fill="none">
+            <line x1="0" y1="640" x2="1400" y2="640"/>
+            <line x1="120" y1="600" x2="1280" y2="600"/>
+            <line x1="200" y1="720" x2="320" y2="560"/>
+            <line x1="500" y1="720" x2="540" y2="560"/>
+            <line x1="900" y1="720" x2="860" y2="560"/>
+            <line x1="1200" y1="720" x2="1080" y2="560"/>
+            <line x1="700" y1="720" x2="700" y2="560"/>
+          </g>
+          <!-- left window -->
+          <g>
+            <rect x="14" y="150" width="74" height="250" rx="8" fill="var(--sky)" stroke="var(--green-d)" stroke-width="5"/>
+            <circle cx="34" cy="195" r="16" fill="#F6C84A"/>
+            <g stroke="#F6C84A" stroke-width="3" stroke-linecap="round">
+              <line x1="34" y1="168" x2="34" y2="160"/><line x1="34" y1="222" x2="34" y2="230"/>
+              <line x1="9" y1="195" x2="17" y2="195"/><line x1="51" y1="195" x2="59" y2="195"/>
+            </g>
+            <path d="M14 400 L14 320 Q40 280 56 320 Q70 290 88 330 L88 400 Z" fill="var(--green)"/>
+            <path d="M14 400 L14 350 Q34 330 50 355 L88 360 L88 400 Z" fill="var(--green-d)"/>
+            <line x1="51" y1="150" x2="51" y2="400" stroke="var(--green-d)" stroke-width="4"/>
+            <line x1="14" y1="275" x2="88" y2="275" stroke="var(--green-d)" stroke-width="4"/>
+          </g>
+          <!-- right window -->
+          <g>
+            <rect x="1312" y="150" width="74" height="250" rx="8" fill="var(--sky)" stroke="var(--green-d)" stroke-width="5"/>
+            <path d="M1312 400 L1312 330 Q1340 285 1356 330 Q1372 295 1386 335 L1386 400 Z" fill="var(--green)"/>
+            <path d="M1312 400 L1312 355 Q1335 335 1352 358 L1386 360 L1386 400 Z" fill="var(--green-d)"/>
+            <line x1="1349" y1="150" x2="1349" y2="400" stroke="var(--green-d)" stroke-width="4"/>
+            <line x1="1312" y1="275" x2="1386" y2="275" stroke="var(--green-d)" stroke-width="4"/>
+          </g>
+          <!-- banner -->
+          <rect x="505" y="74" width="390" height="74" rx="14" fill="var(--yellow)" stroke="#e9bf42" stroke-width="3"/>
+          <text x="700" y="126" text-anchor="middle" font-family="'Noto Sans TC',sans-serif" font-weight="900" font-size="46" fill="var(--red)" letter-spacing="6">中文天地</text>
+          <!-- whiteboard -->
+          <rect x="430" y="170" width="540" height="300" rx="14" fill="var(--coral)"/>
+          <rect x="448" y="186" width="504" height="268" rx="6" fill="#FBFAEC"/>
+          <rect x="430" y="170" width="540" height="300" rx="14" fill="none" stroke="var(--coral-d)" stroke-width="3" opacity=".4"/>
+          <rect x="470" y="468" width="460" height="10" rx="5" fill="var(--coral-d)" opacity=".5"/>
+          <g fill="var(--green)">
+            <path d="M470 470 q-18 -42 6 -64 q14 26 -6 64 Z"/>
+            <path d="M500 472 q-6 -52 22 -60 q4 34 -22 60 Z" fill="var(--green-d)"/>
+            <path d="M540 472 q12 -46 40 -44 q-6 30 -40 44 Z"/>
+            <path d="M870 472 q24 -46 52 -38 q-12 32 -52 38 Z" fill="var(--green-d)"/>
+            <path d="M910 470 q14 -50 40 -46 q-4 34 -40 46 Z"/>
+          </g>
+          <!-- right wall : only the round vase decoration (red-bordered squares removed) -->
+          <circle cx="1130" cy="300" r="56" fill="none" stroke="var(--coral)" stroke-width="3"/>
+          <path d="M1130 335 q-16 -2 -16 -22 q0 -16 16 -16 q16 0 16 16 q0 20 -16 22Z" fill="#fff" stroke="var(--coral)" stroke-width="3"/>
+          <g stroke="var(--coral-d)" stroke-width="2" fill="none">
+            <path d="M1130 295 q-20 -22 -34 -18"/><path d="M1130 290 q14 -26 32 -20"/><path d="M1130 302 q-26 -6 -34 6"/>
+          </g>
+          <g fill="var(--coral)"><circle cx="1095" cy="275" r="3"/><circle cx="1162" cy="268" r="3"/><circle cx="1094" cy="310" r="3"/></g>
+          <!-- left cabinet -->
+          <g>
+            <rect x="118" y="430" width="252" height="150" rx="14" fill="var(--green)" stroke="var(--coral)" stroke-width="6"/>
+            <rect x="134" y="446" width="220" height="36" rx="8" fill="none" stroke="var(--coral)" stroke-width="4"/>
+            <rect x="134" y="490" width="220" height="36" rx="8" fill="none" stroke="var(--coral)" stroke-width="4"/>
+            <rect x="134" y="534" width="220" height="36" rx="8" fill="none" stroke="var(--coral)" stroke-width="4"/>
+            <rect x="140" y="578" width="22" height="14" rx="4" fill="#2E4A45"/>
+            <rect x="326" y="578" width="22" height="14" rx="4" fill="#2E4A45"/>
+            <rect x="118" y="424" width="252" height="14" rx="7" fill="var(--green-d)"/>
+          </g>
+
+          <!-- ===== female teacher (taller, adult) at the front ===== -->
+          <ellipse cx="700" cy="700" rx="92" ry="13" fill="rgba(46,74,69,.13)"/>
+          <!-- back hair -->
+          <path d="M658 372 Q656 326 700 324 Q744 326 742 372 L748 456 Q736 448 726 452 L720 392 Q710 384 700 384 Q690 384 680 392 L674 452 Q664 448 652 456 Z" fill="#5A3E32"/>
+          <!-- legs + shoes -->
+          <rect x="678" y="598" width="15" height="96" rx="7" fill="#EBB78D"/>
+          <rect x="707" y="598" width="15" height="96" rx="7" fill="#EBB78D"/>
+          <ellipse cx="684" cy="695" rx="16" ry="7" fill="#4A3A33"/>
+          <ellipse cx="716" cy="695" rx="16" ry="7" fill="#4A3A33"/>
+          <!-- skirt -->
+          <path d="M656 500 L744 500 L772 616 L628 616 Z" fill="#3FB39B" stroke="#34998a" stroke-width="2" stroke-linejoin="round"/>
+          <!-- blouse -->
+          <path d="M652 474 Q648 408 700 403 Q752 408 748 474 L744 508 L656 508 Z" fill="#E8584A"/>
+          <!-- right arm down -->
+          <path d="M744 430 Q766 470 758 512" fill="none" stroke="#E8584A" stroke-width="19" stroke-linecap="round"/>
+          <circle cx="759" cy="516" r="10" fill="#F2C49C"/>
+          <!-- left arm raised toward the board + pointer -->
+          <path d="M658 428 Q606 404 582 358" fill="none" stroke="#E8584A" stroke-width="19" stroke-linecap="round"/>
+          <circle cx="579" cy="354" r="10.5" fill="#F2C49C"/>
+          <line x1="579" y1="354" x2="512" y2="312" stroke="#9a6b43" stroke-width="5" stroke-linecap="round"/>
+          <!-- neck -->
+          <rect x="692" y="386" width="16" height="22" rx="6" fill="#F2C49C"/>
+          <!-- head -->
+          <circle cx="700" cy="368" r="27" fill="#F2C49C"/>
+          <!-- front fringe -->
+          <path d="M673 358 Q673 336 700 336 Q727 336 727 358 Q715 346 700 346 Q685 346 673 358 Z" fill="#5A3E32"/>
+          <!-- face -->
+          <ellipse cx="683" cy="374" rx="5" ry="4" fill="#F0A98C" opacity=".55"/>
+          <ellipse cx="717" cy="374" rx="5" ry="4" fill="#F0A98C" opacity=".55"/>
+          <path d="M684 361 Q689 358 694 361" fill="none" stroke="#3a2e29" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M706 361 Q711 358 716 361" fill="none" stroke="#3a2e29" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="690" cy="367" r="2.9" fill="#3a2e29"/>
+          <circle cx="710" cy="367" r="2.9" fill="#3a2e29"/>
+          <path d="M692 379 Q700 386 708 379" fill="none" stroke="#C25A48" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="673" cy="380" r="2.4" fill="#F8D15A"/>
+          <circle cx="727" cy="380" r="2.4" fill="#F8D15A"/>
+        </svg>
+
+        <div class="layer" id="layer"></div>
+      </div>
+    </div>
+
+    <!-- SUPPLY -->
+    <div class="supply">
+      <div class="supply-head">
+        <span class="tag">📦 備用區</span>
+        <div class="tabs">
+          <button class="tab active" data-cat="classroom">教室物品</button>
+          <button class="tab" data-cat="pen">筆類</button>
+          <button class="tab" data-cat="paper">紙張類</button>
+          <button class="tab" data-cat="all">全部</button>
+        </div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <div id="ghost"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---- custom flat icons (no background, transparent) ---- */
+  var DESK='<svg viewBox="0 0 24 24" fill="none" stroke="#6b8c84" stroke-width="2" stroke-linecap="round"><line x1="2" y1="8" x2="22" y2="8"/><line x1="5" y1="8" x2="5" y2="20"/><line x1="19" y1="8" x2="19" y2="20"/><line x1="2" y1="13" x2="22" y2="13"/></svg>';
+  // 黑色電視遙控器
+  var REMOTE='<svg viewBox="0 0 24 24"><rect x="6.5" y="1.4" width="11" height="21.2" rx="4" fill="#2c2c30" stroke="#17171a" stroke-width="0.7"/><circle cx="9" cy="4.2" r="0.95" fill="#e74c3c"/><circle cx="15" cy="4.2" r="0.95" fill="#888"/><rect x="8.2" y="6.5" width="7.6" height="1" rx="0.5" fill="#56565e"/><circle cx="12" cy="11.8" r="3.4" fill="#45454d"/><circle cx="12" cy="11.8" r="1.4" fill="#9a9aa2"/><circle cx="9.3" cy="16.4" r="0.85" fill="#e74c3c"/><circle cx="12" cy="16.4" r="0.85" fill="#2ecc71"/><circle cx="14.7" cy="16.4" r="0.85" fill="#f1c40f"/><circle cx="9.3" cy="18.8" r="0.85" fill="#3498db"/><circle cx="12" cy="18.8" r="0.85" fill="#888"/><circle cx="14.7" cy="18.8" r="0.85" fill="#888"/><rect x="9" y="20.5" width="6" height="1" rx="0.5" fill="#56565e"/></svg>';
+  // 講桌（可移動）
+  var LECTERN='<svg viewBox="0 0 24 24"><path d="M5.2 21 L18.8 21 L17 9.4 L7 9.4 Z" fill="#F3F2E3" stroke="#F0705E" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.6 9.4 L18.4 9.4 L16.7 5.4 L7.3 5.4 Z" fill="#ffffff" stroke="#F0705E" stroke-width="1.5" stroke-linejoin="round"/><line x1="6.6" y1="15" x2="17.4" y2="15" stroke="#F0705E" stroke-width="1" opacity=".5"/></svg>';
+  // 白色投影機
+  var PROJ='<svg viewBox="0 0 24 24"><rect x="2.4" y="7" width="19.2" height="11" rx="2.6" fill="#f1f3f5" stroke="#cfd3d9" stroke-width="0.8"/><rect x="2.4" y="7" width="19.2" height="3.4" rx="2.6" fill="#ffffff"/><circle cx="8" cy="13" r="3.4" fill="#3a3f47"/><circle cx="8" cy="13" r="2.2" fill="#6aa9c9"/><circle cx="8" cy="13" r="1" fill="#22313a"/><g stroke="#cfd3d9" stroke-width="0.8" stroke-linecap="round"><line x1="14.6" y1="10.6" x2="14.6" y2="15.4"/><line x1="16.1" y1="10.6" x2="16.1" y2="15.4"/><line x1="17.6" y1="10.6" x2="17.6" y2="15.4"/></g><rect x="13.6" y="8.4" width="5.8" height="1.1" rx="0.5" fill="#dfe3e8"/><rect x="5" y="18" width="2.2" height="1.5" rx="0.6" fill="#cfd3d9"/><rect x="16.8" y="18" width="2.2" height="1.5" rx="0.6" fill="#cfd3d9"/></svg>';
+
+  // 白色白板（站立式）
+  var WHITEBOARD='<svg viewBox="0 0 24 24"><rect x="2" y="3.5" width="20" height="13.6" rx="1.6" fill="#ffffff" stroke="#c7cdd4" stroke-width="1.1"/><rect x="3.3" y="4.8" width="17.4" height="11" rx="0.8" fill="#ffffff" stroke="#eef1f4" stroke-width="0.6"/><path d="M6 9 q3 -2 6 0 t6 0" fill="none" stroke="#5fb6e0" stroke-width="1.1" stroke-linecap="round"/><line x1="6" y1="12.4" x2="14" y2="12.4" stroke="#ef8e63" stroke-width="1.1" stroke-linecap="round"/><line x1="6" y1="14.3" x2="11" y2="14.3" stroke="#8fcf86" stroke-width="1.1" stroke-linecap="round"/><line x1="9" y1="17.1" x2="9" y2="20" stroke="#9aa3ab" stroke-width="1.2" stroke-linecap="round"/><line x1="15" y1="17.1" x2="15" y2="20" stroke="#9aa3ab" stroke-width="1.2" stroke-linecap="round"/><rect x="5" y="19.6" width="14" height="1.8" rx="0.9" fill="#b9c0c7"/></svg>';
+
+  // 椅子（正面朝老師，椅背平行底線）
+  var CHAIR='<svg viewBox="0 0 24 24"><rect x="5" y="3.6" width="14" height="6" rx="1.8" fill="#E3A968" stroke="#C2884A" stroke-width="1.1"/><rect x="4.4" y="12" width="15.2" height="3.4" rx="1.2" fill="#E3A968" stroke="#C2884A" stroke-width="1.1"/><line x1="6.6" y1="9.6" x2="6.6" y2="12.2" stroke="#C2884A" stroke-width="1.5"/><line x1="17.4" y1="9.6" x2="17.4" y2="12.2" stroke="#C2884A" stroke-width="1.5"/><line x1="6.3" y1="15.4" x2="5.6" y2="20.6" stroke="#C2884A" stroke-width="1.6" stroke-linecap="round"/><line x1="17.7" y1="15.4" x2="18.4" y2="20.6" stroke="#C2884A" stroke-width="1.6" stroke-linecap="round"/><line x1="9" y1="15.4" x2="8.7" y2="20.6" stroke="#C2884A" stroke-width="1.6" stroke-linecap="round"/><line x1="15" y1="15.4" x2="15.3" y2="20.6" stroke="#C2884A" stroke-width="1.6" stroke-linecap="round"/></svg>';
+
+  /* zh = 漢字, ic = 圖, cat 分類. (沒有拼音/翻譯) */
+  var ITEMS = [
+    // 教室物品（看得出來的不放字）
+    {zh:'桌子', ic:DESK, cat:'classroom', sz:'big'},
+    {zh:'講桌', ic:LECTERN, cat:'classroom', sz:'big'},
+    {zh:'椅子', ic:CHAIR, cat:'classroom', sz:'big'},
+    {zh:'白板', ic:WHITEBOARD, cat:'classroom', sz:'big'},
+    {zh:'板擦', ic:'🧽', cat:'classroom'},
+    {zh:'書',   ic:'📕', cat:'classroom'},
+    {zh:'課本', ic:'📗', cat:'classroom'},
+    {zh:'筆記本', ic:'📓', cat:'classroom'},
+    {zh:'地球儀', ic:'🌍', cat:'classroom', sz:'mid'},
+    {zh:'地圖', ic:'🗺️', cat:'classroom', sz:'big'},
+    {zh:'時鐘', ic:'🕐', cat:'classroom', sz:'mid'},
+    {zh:'遙控器', ic:REMOTE, cat:'classroom'},
+    {zh:'影印機', ic:'🖨️', cat:'classroom', sz:'mid'},
+    {zh:'投影機', ic:PROJ, cat:'classroom', sz:'mid'},
+    {zh:'麥克風', ic:'🎤', cat:'classroom'},
+    {zh:'櫃子', ic:'🗄️', cat:'classroom', sz:'big'},
+    {zh:'紙',   ic:'📃', cat:'classroom'},
+    // 筆類（看不出來放漢字）
+    {zh:'粉筆', ic:'✏️', cat:'pen'},
+    {zh:'白板筆', ic:'🖊️', cat:'pen'},
+    {zh:'麥克筆', ic:'🖍️', cat:'pen'},
+    // 紙張類（看不出來放漢字）
+    {zh:'影印紙', ic:'📄', cat:'paper'},
+    {zh:'考卷', ic:'📝', cat:'paper'},
+    {zh:'問卷', ic:'🗳️', cat:'paper'},
+    {zh:'資料', ic:'🗂️', cat:'paper'},
+    {zh:'講義', ic:'📜', cat:'paper'},
+    {zh:'學習單', ic:'📋', cat:'paper'},
+    {zh:'作業', ic:'📔', cat:'paper'},
+    {zh:'報告', ic:'📑', cat:'paper'}
+  ];
+
+  var QTY3 = {};
+  function hasText(it){ return it.cat==='pen' || it.cat==='paper'; }
+
+  var SCENE = [
+    {zh:'講桌',   x:30, y:84},
+    {zh:'地球儀', x:15, y:53},
+    {zh:'書',     x:25, y:58},
+    {zh:'時鐘',   x:84, y:17},
+    {zh:'地圖',   x:50, y:28},
+    {zh:'板擦',   x:32, y:64}
+  ];
+
+  var stage = document.getElementById('stage');
+  var layer = document.getElementById('layer');
+  var grid  = document.getElementById('grid');
+  var ghost = document.getElementById('ghost');
+  function find(zh){ for(var i=0;i<ITEMS.length;i++) if(ITEMS[i].zh===zh) return ITEMS[i]; return null; }
+
+  /* ---- speech ---- */
+  var soundOn = true, zhVoice = null;
+  function pickVoice(){
+    var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+    zhVoice = vs.find(function(v){return /zh[-_]?TW|cmn-Hant|Hant/i.test(v.lang);}) ||
+              vs.find(function(v){return /zh[-_]?(HK|CN)|cmn/i.test(v.lang);}) ||
+              vs.find(function(v){return /^zh/i.test(v.lang);}) || null;
+  }
+  if(window.speechSynthesis){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  function speak(text){
+    if(!soundOn || !window.speechSynthesis) return;
+    try{
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = (zhVoice && zhVoice.lang) || 'zh-TW';
+      if(zhVoice) u.voice = zhVoice;
+      u.rate = .85; u.pitch = 1;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  /* ---- palette ---- */
+  function buildGrid(cat){
+    grid.innerHTML = '';
+    ITEMS.filter(function(i){return cat==='all'||i.cat===cat;}).forEach(function(it){
+      var c = document.createElement('div');
+      c.className = 'card';
+      var trio = !!QTY3[it.zh];
+      var icHTML = trio ? (it.ic+it.ic+it.ic) : it.ic;
+      c.innerHTML =
+        (trio ? '<span class="qbadge">×3</span>' : '')+
+        '<button class="play" title="發音">🔊</button>'+
+        '<span class="ic'+(trio?' trio':'')+'">'+icHTML+'</span>'+
+        (hasText(it) ? '<span class="czh">'+it.zh+'</span>' : '');
+      c.querySelector('.play').addEventListener('pointerdown', function(e){ e.stopPropagation(); speak(it.zh); });
+      attachSpawn(c, it);
+      grid.appendChild(c);
+    });
+  }
+
+  /* ---- movable token ---- */
+  function makeToken(it, xPct, yPct, isScene){
+    var t = document.createElement('div');
+    t.className = 'token' + (isScene ? ' scene' : '');
+    t.style.left = xPct + '%';
+    t.style.top  = yPct + '%';
+    t.style.setProperty('--scale', it.sz==='big' ? 3.2 : (it.sz==='mid' ? 1.8 : 1));
+    t.innerHTML =
+      '<span class="del" title="移除">✕</span>'+
+      '<span class="speaker">🔊</span>'+
+      '<span class="icon">'+it.ic+'</span>'+
+      (hasText(it) ? '<div class="label"><span class="zh">'+it.zh+'</span></div>' : '');
+    t.querySelector('.del').addEventListener('pointerdown', function(e){
+      e.stopPropagation();
+      t.style.animation='pop .2s reverse forwards';
+      setTimeout(function(){t.remove();},160);
+    });
+    attachMove(t, it);
+    layer.appendChild(t);
+    return t;
+  }
+
+  function clearTapped(){
+    var ts=layer.querySelectorAll('.token.tapped');
+    for(var i=0;i<ts.length;i++) ts[i].classList.remove('tapped');
+  }
+
+  /* ---- move existing token ---- */
+  function attachMove(el, it){
+    var startX, startY, moved, originLeft, originTop;
+    el.addEventListener('pointerdown', function(e){
+      if(e.target.classList.contains('del')) return;
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('dragging');
+      moved = false; startX = e.clientX; startY = e.clientY;
+      el._rect = stage.getBoundingClientRect();
+      originLeft = parseFloat(el.style.left); originTop = parseFloat(el.style.top);
+    });
+    el.addEventListener('pointermove', function(e){
+      if(!el.classList.contains('dragging')) return;
+      var dx = e.clientX - startX, dy = e.clientY - startY;
+      if(Math.abs(dx)>4 || Math.abs(dy)>4) moved = true;
+      var r = el._rect;
+      var lx = originLeft + dx / r.width * 100;
+      var ly = originTop  + dy / r.height * 100;
+      el.style.left = Math.max(3, Math.min(97, lx)) + '%';
+      el.style.top  = Math.max(5, Math.min(95, ly)) + '%';
+    });
+    function end(e){
+      if(!el.classList.contains('dragging')) return;
+      el.classList.remove('dragging');
+      try{ el.releasePointerCapture(e.pointerId);}catch(_){}
+      if(!moved){
+        speak(it.zh);
+        clearTapped(); el.classList.add('tapped');
+        el.classList.add('speaking'); setTimeout(function(){el.classList.remove('speaking');},500);
+      }
+    }
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  /* ---- spawn from palette ---- */
+  function attachSpawn(card, it){
+    card.addEventListener('pointerdown', function(e){
+      if(e.target.classList.contains('play')) return;
+      e.preventDefault();
+      var pid = e.pointerId, dragging = false;
+      ghost.innerHTML = it.ic;
+      ghost.style.display='block'; ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px';
+      card.setPointerCapture(pid);
+      function move(ev){ dragging=true; ghost.style.left=ev.clientX+'px'; ghost.style.top=ev.clientY+'px'; }
+      function up(ev){
+        card.releasePointerCapture(pid);
+        card.removeEventListener('pointermove', move);
+        card.removeEventListener('pointerup', up);
+        card.removeEventListener('pointercancel', up);
+        ghost.style.display='none'; ghost.innerHTML='';
+        var r = stage.getBoundingClientRect();
+        var inside = ev.clientX>=r.left && ev.clientX<=r.right && ev.clientY>=r.top && ev.clientY<=r.bottom;
+        if(!dragging){ speak(it.zh); return; }
+        if(inside){
+          var xPct=(ev.clientX-r.left)/r.width*100, yPct=(ev.clientY-r.top)/r.height*100;
+          var tk = makeToken(it, Math.max(3,Math.min(97,xPct)), Math.max(5,Math.min(95,yPct)), false);
+          speak(it.zh); tk.classList.add('speaking'); setTimeout(function(){tk.classList.remove('speaking');},500);
+        }
+      }
+      card.addEventListener('pointermove', move);
+      card.addEventListener('pointerup', up);
+      card.addEventListener('pointercancel', up);
+    });
+  }
+
+  function loadScene(){
+    layer.innerHTML='';
+    SCENE.forEach(function(s){ var it=find(s.zh); if(it) makeToken(it, s.x, s.y, true); });
+  }
+
+  /* ---- controls ---- */
+  var tgSound=document.getElementById('tgSound');
+  tgSound.addEventListener('click', function(){
+    soundOn=!soundOn;
+    tgSound.classList.toggle('on', soundOn);
+    tgSound.textContent=(soundOn?'🔊':'🔇')+' 發音';
+    if(!soundOn && window.speechSynthesis) speechSynthesis.cancel();
+  });
+  document.getElementById('reset').addEventListener('click', loadScene);
+  document.getElementById('clear').addEventListener('click', function(){
+    layer.innerHTML='';
+  });
+  document.querySelectorAll('.tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+      tab.classList.add('active');
+      buildGrid(tab.dataset.cat);
+    });
+  });
+
+  buildGrid('classroom');
+  loadScene();
+})();
+</script>
+</body>
+</html>
